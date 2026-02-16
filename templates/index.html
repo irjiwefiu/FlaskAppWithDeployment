@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../style/style.css">
+    <link rel="stylesheet" href={{ url_for('static', filename='css/style.css') }}>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <title>Event Invitation</title>
 </head>
@@ -28,26 +28,26 @@
             Join us for an unforgettable night of music and dance at Midnight Beats 2025! Experience electrifying performances by top DJs and live artists, all set against the backdrop of the stunning Sunset Arena. Whether you're a die-hard music lover or just looking for a fun night out, this event promises to deliver an incredible atmosphere filled with energy and excitement. Don't miss out on the party of the year!
         </p>
         <div id="images">
-            <img src="../images/about-1.jpg" alt="Stage of a music event with vibrant lights and a crowd">
-            <img src="../images/about-2.jpg" alt="crowd dancing at a music event with colorful lights">
+            <img src="{{ url_for('static', filename='images/about-1.jpg') }}" alt="Stage of a music event with vibrant lights and a crowd">
+            <img src="{{ url_for('static', filename='images/about-2.jpg') }}" alt="crowd dancing at a music event with colorful lights">
         </div>
     </div>
 
 
     <div id="lineUp">
         <div class="card">
-            <img src="../images/artist-TaylorSwift.jpg" alt="Taylor Swift performing on stage with a guitar and vibrant lights">
+            <img src="{{ url_for('static', filename='images/artist-TaylorSwift.jpg') }}" alt="Taylor Swift performing on stage with a guitar and vibrant lights">
             <div class="name">Taylor Swift</div>
             <div class="description">Taylor Swift is an American singer-songwriter known for her narrative songwriting and versatile music style. With a career spanning over a decade, she has released multiple chart-topping albums and has won numerous awards, including several Grammys. Taylor's music often explores themes of love, heartbreak, and personal growth, making her one of the most influential artists in the music industry.</div>
         </div>
         <div class="card">
-            <img src="../images/artist-beyounce.jpg" alt=" Beyoncé performing on stage with a microphone and dynamic lighting">
+            <img src="{{ url_for('static', filename='images/artist-beyounce.jpg') }}" alt=" Beyoncé performing on stage with a microphone and dynamic lighting">
             <div class="name">Beyoncé</div>
             <div class="description">Beyoncé is an American singer, songwriter, and actress known for her powerful vocals and dynamic performances. Rising to fame as the lead singer of Destiny's Child, she has since established a successful solo career with multiple hit albums and singles. Beyoncé is celebrated for her influence on pop culture, her advocacy for social justice, and her ability to inspire fans worldwide with her music and activism.</div>
 
         </div>
         <div class="card">
-            <div class="img"><img src="../images/artist-Bruce Springsteen.jpg" alt="A picture of Bruce Springsteen laning on a dice"></div>
+            <div class="img"><img src="{{ url_for('static', filename='images/artist-Bruce Springsteen.jpg') }}" alt="A picture of Bruce Springsteen laning on a dice"></div>
             <div class="name">Bruce Springsteen</div>
             <div class="description">Bruce Springsteen, also known as "The Boss," is an American singer-songwriter and musician renowned for his heartland rock style and poetic lyrics. With a career spanning over five decades, Springsteen has released numerous critically acclaimed albums and is known for his energetic live performances. His music often explores themes of working-class life, love, and the American experience, making him a beloved figure in rock music history.</div>
         </div>
@@ -101,14 +101,16 @@
         </div>
     </div>
     <div id="contact">
-        <form action="">
+        <form action="{{ url_for('about') }}" method="post">
             Name: <input type="text" name="name" required><br><br>
             Email: <input type="email" name="email" required><br><br>
             Message:<br>
             <textarea name="message" rows="5" cols="30" required></textarea><br><br>
             <input type="submit" value="Submit">
         </form>
+        
     </div>
+
     <footer height="200px">
         <i class="fa-brands fa-facebook"></i>
         <span>
