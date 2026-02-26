@@ -1,11 +1,11 @@
-name: Deploy Docker Image to EC2
+name: Deploy Docker Image to EC2 interface
 
 on:
   push:
     branches: [main]
 
 jobs:
-  continuous-integration:
+  continous-integration:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.build-image.outputs.image }}
@@ -25,21 +25,19 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag and push Docker image
+      - name: Build, tag and push image to Amazon ECR
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: latest
         run: |
-          # Use only repository:tag as output (safe, non-secret)
-          IMAGE_NAME="$ECR_REPOSITORY:$IMAGE_TAG"
-          docker build -t $ECR_REGISTRY/$IMAGE_NAME .
-          docker push $ECR_REGISTRY/$IMAGE_NAME
-          echo "image=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-  continuous-deployment:
-    needs: continuous-integration
+  continous-deployment:
+    needs: continous-integration
     runs-on: self-hosted
 
     steps:
@@ -57,25 +55,11 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Deploy Docker image
+      - name: Run Docker image on server
         run: |
-          # Reconstruct full image name safely
-          IMAGE_NAME="${{ needs.continuous-integration.outputs.image }}"
-          FULL_IMAGE="${{ steps.ecr-login.outputs.registry }}/$IMAGE_NAME"
-          echo "Deploying image: $FULL_IMAGE"
-
-          # Stop existing container (if any)
-          CONTAINER_ID=$(docker ps -q --filter "ancestor=$FULL_IMAGE")
-          if [ -n "$CONTAINER_ID" ]; then
-            echo "Stopping old container $CONTAINER_ID"
-            docker stop $CONTAINER_ID
-            docker rm $CONTAINER_ID
-          fi
-
-          # Run new container
           docker run -d \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
             -p 5000:5000 \
-            $FULL_IMAGE
+            ${{ needs.continous-integration.outputs.image }}
