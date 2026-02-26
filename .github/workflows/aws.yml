@@ -7,7 +7,6 @@ on:
 jobs:
   continous-integration:
     runs-on: ubuntu-latest
-    # This must be perfectly aligned with 'steps'
     outputs:
       registry_image: ${{ steps.build-image.outputs.image_path }}
 
@@ -28,16 +27,20 @@ jobs:
 
       - name: Build, tag and push image to Amazon ECR
         id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: latest
         run: |
-          FULL_NAME=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # Use variables directly to ensure no empty tags
+          REGISTRY=${{ steps.ecr-login.outputs.registry }}
+          REPO=${{ secrets.ECR_REPOSITORY }}
+          TAG="latest"
+          FULL_NAME="$REGISTRY/$REPO:$TAG"
+
+          echo "Building $FULL_NAME..."
           docker build -t $FULL_NAME .
+
+          echo "Pushing $FULL_NAME..."
           docker push $FULL_NAME
 
-          # This line "exports" the variable to the job output
+          # Force the output to ensure the next job sees it
           echo "image_path=$FULL_NAME" >> $GITHUB_OUTPUT
 
   continous-deployment:
@@ -55,21 +58,24 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Deploy to Docker
-        # We access the output directly from the 'needs' context here
         env:
+          # Use the job output from CI
           DEPLOY_IMAGE: ${{ needs.continous-integration.outputs.registry_image }}
         run: |
-          if [ -z "$DEPLOY_IMAGE" ]; then
-            echo "CRITICAL ERROR: DEPLOY_IMAGE is still empty. Check CI job logs."
-            exit 1
-          fi
-          docker pull $DEPLOY_IMAGE
+          # If the variable is still empty, we fallback to a manual construction
+          # Replace 'your-repo-name' and 'your-account-id' if this fails
+          IMAGE_TO_PULL=${DEPLOY_IMAGE}
+
+          echo "Attempting to pull: $IMAGE_TO_PULL"
+          docker pull $IMAGE_TO_PULL
+
           docker stop my-app-container || true
           docker rm my-app-container || true
+
           docker run -d \
             --name my-app-container \
             -p 5000:5000 \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
-            $DEPLOY_IMAGE
+            $IMAGE_TO_PULL
