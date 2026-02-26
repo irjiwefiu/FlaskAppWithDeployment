@@ -7,8 +7,9 @@ on:
 jobs:
   continous-integration:
     runs-on: ubuntu-latest
+    # CRITICAL: This must be exactly here to bridge Job 1 and Job 2
     outputs:
-      registry_image: ${{ steps.build-image.outputs.image_path }}
+      image_tag: ${{ steps.build-image.outputs.full_path }}
 
     steps:
       - name: Checkout code
@@ -28,20 +29,20 @@ jobs:
       - name: Build, tag and push image to Amazon ECR
         id: build-image
         run: |
-          # Use variables directly to ensure no empty tags
-          REGISTRY=${{ steps.ecr-login.outputs.registry }}
-          REPO=${{ secrets.ECR_REPOSITORY }}
+          # 1. Define variables clearly
+          REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          REPO="${{ secrets.ECR_REPOSITORY }}"
           TAG="latest"
-          FULL_NAME="$REGISTRY/$REPO:$TAG"
+          FULL_PATH="$REGISTRY/$REPO:$TAG"
 
-          echo "Building $FULL_NAME..."
-          docker build -t $FULL_NAME .
+          # 2. Build and Tag (Ensures the image isn't '-' in ECR)
+          docker build -t $FULL_PATH .
 
-          echo "Pushing $FULL_NAME..."
-          docker push $FULL_NAME
+          # 3. Push
+          docker push $FULL_PATH
 
-          # Force the output to ensure the next job sees it
-          echo "image_path=$FULL_NAME" >> $GITHUB_OUTPUT
+          # 4. EXPORT TO GITHUB_OUTPUT (The most important line)
+          echo "full_path=$FULL_PATH" >> "$GITHUB_OUTPUT"
 
   continous-deployment:
     needs: continous-integration
@@ -55,27 +56,32 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
+        id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Deploy to Docker
-        env:
-          # Use the job output from CI
-          DEPLOY_IMAGE: ${{ needs.continous-integration.outputs.registry_image }}
         run: |
-          # If the variable is still empty, we fallback to a manual construction
-          # Replace 'your-repo-name' and 'your-account-id' if this fails
-          IMAGE_TO_PULL=${DEPLOY_IMAGE}
+          # 1. Try to get the path from the previous job
+          IMAGE_PATH="${{ needs.continous-integration.outputs.image_tag }}"
 
-          echo "Attempting to pull: $IMAGE_TO_PULL"
-          docker pull $IMAGE_TO_PULL
+          # 2. EMERGENCY FALLBACK: If the variable is empty, reconstruct it manually
+          if [ -z "$IMAGE_PATH" ]; then
+            echo "Variable handoff failed. Reconstructing manually..."
+            REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+            REPO="${{ secrets.ECR_REPOSITORY }}"
+            IMAGE_PATH="$REGISTRY/$REPO:latest"
+          fi
 
+          echo "Final Image Path: $IMAGE_PATH"
+
+          # 3. Pull and Run
+          docker pull $IMAGE_PATH
           docker stop my-app-container || true
           docker rm my-app-container || true
-
           docker run -d \
             --name my-app-container \
             -p 5000:5000 \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
-            $IMAGE_TO_PULL
+            $IMAGE_PATH
